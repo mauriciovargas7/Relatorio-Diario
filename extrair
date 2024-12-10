@@ -1,2 +1,636 @@
 ## Extrair arquivos ↓
-Execute para extrair arquivos
+## Execute para extrair arquivos
+
+from selenium import webdriver
+from selenium.webdriver.common.by import By
+from selenium.webdriver.common.keys import Keys
+from selenium.webdriver.chrome.service import Service
+from webdriver_manager.chrome import ChromeDriverManager
+from selenium.webdriver.common.action_chains import ActionChains
+from selenium import webdriver
+from selenium.webdriver.support.ui import WebDriverWait
+from selenium.webdriver.support import expected_conditions as EC
+import matplotlib.pyplot as plt
+import time
+import pyautogui
+import xlrd
+from openpyxl import Workbook
+from openpyxl.styles import Alignment
+import openpyxl
+from datetime import datetime, timedelta
+import pandas as pd
+import os
+import win32com.client as win32
+from io import BytesIO
+import base64
+
+
+# Config data 
+data_inicio = input('Insira a data de início (dd/mm/aaaa): ')
+data_final = input('Insira a data final (dd/mm/aaaa): ')
+
+
+
+# Config caminhos 
+desc_path = r'C:\Users\Usuário\Documents\Projetos\05 - Vserro 2\DescServ.xlsx'
+
+
+# Busca arquivo
+for file_name in os.listdir(r'C:\Users\Usuário\Downloads'):
+    if "RelatorioOrigemDestino" in file_name:
+        file_path = os.path.join(r'C:\Users\Usuário\Downloads', file_name)
+        os.remove(file_path)
+        print(f"Arquivo apagado: {file_path}")
+        
+else:
+    print("Nenhum arquivo com 'RelatorioOrigemDestino' encontrado na pasta Downloads.")
+
+
+# -------------------------------------------------------------------------------------------------------------------------------------------
+# Acessa Web service
+service = Service(ChromeDriverManager().install())
+options = webdriver.ChromeOptions()
+driver = webdriver.Chrome(service=service, options=options)
+wait = WebDriverWait(driver, timeout=60) 
+driver.maximize_window()
+url_login = 'https://webservice.com.br'
+driver.get(url_login)
+usuario = 'Nome_usuario'
+senha = 'Senha'
+
+driver.find_element(By.NAME, "Botao_username").clear()
+driver.find_element(By.NAME, "Botao_username").send_keys(usuario) 
+
+driver.find_element(By.NAME, "Botao_password").clear()
+driver.find_element(By.NAME, "Botao_password").send_keys(senha)
+
+driver.find_element(By.NAME, "BotaoAcessar").click()
+
+
+
+# -------------------------------------------------------------------------------------------------------------------------------------------
+# Config data 
+data_inicio_obj = datetime.strptime(data_inicio, "%d/%m/%Y")
+data_final_obj = datetime.strptime(data_final, "%d/%m/%Y")
+
+data_relatorio_obj = datetime.strptime(data_inicio, "%d/%m/%Y")
+data_relatorio_str = data_relatorio_obj.strftime("%d/%m/%Y")
+
+
+while data_relatorio_obj <= data_final_obj:
+    print('Relatório dia:', data_relatorio_str)
+    
+
+    # -------------------------------------------------------------------------------------------------------------------------------------------
+    # relatório caminho
+
+    BotaoRelat = wait.until(EC.presence_of_element_located((By.XPATH, '/html/body/div/div/div[3]/div[2]/div[1]/div[1]/div/div/table/tbody/tr/td[9]')))
+    BotaoRelat.click()
+
+    time.sleep(1)
+
+    element = driver.find_element(By.PARTIAL_LINK_TEXT, 'Relatórios')
+    element.click()
+
+    actions = ActionChains(driver)
+
+    element = driver.find_element(By.PARTIAL_LINK_TEXT, 'Relatórios Estatísticos')
+    actions.move_to_element(element).perform()
+
+    element = driver.find_element(By.PARTIAL_LINK_TEXT, 'Desempenho Por Serviço')
+    element.click()
+
+    # config relatório ------------------------------------------------------------------------------------------------
+
+    DataIni = wait.until(EC.presence_of_element_located((By.XPATH, '/html/body/div[2]/div[3]/div/div/div/div[1]/div[3]/table/tbody[2]/tr[1]/td[2]/div/i/input')))
+    DataIni.click()
+    DataIni.send_keys(data_relatorio_str) 
+    DataFim = driver.find_element(By.XPATH, '/html/body/div[2]/div[3]/div/div/div/div[1]/div[3]/table/tbody[2]/tr[1]/td[4]/div/i/input')
+    DataFim.click()
+    DataFim.send_keys(data_relatorio_str) 
+
+    Empresa = driver.find_element(By.XPATH, '/html/body/div[2]/div[3]/div/div/div/div[1]/div[3]/table/tbody[2]/tr[2]/td[2]/div/i/input')
+    Empresa.click()
+    time.sleep(1)
+    Empresa = driver.find_element(By.XPATH, '/html/body/div[3]/table/tbody/tr/td[2]')
+    Empresa.click()
+
+    Botao = driver.find_element(By.XPATH, '/html/body/div[2]/div[3]/div/div/div/div[1]/div[3]/table/tbody[2]/tr[4]/td/div/span/input')
+    Botao.click()
+
+    Botao = driver.find_element(By.XPATH, '/html/body/div[2]/div[3]/div/div/div/div[1]/div[3]/table/tbody[2]/tr[5]/td/div/span/input')
+    Botao.click()
+
+    Botao = driver.find_element(By.XPATH, '/html/body/div[2]/div[3]/div/div/div/div[2]/div[1]/button')
+    Botao.click()
+
+    BotaoExcel = wait.until(EC.presence_of_element_located((By.XPATH, '/html/body/div[4]/div[3]/div/div/div/div/div[1]/div[1]/div[2]')))
+    BotaoExcel.click()
+
+    pyautogui.click(1198,109,duration=3)
+
+    time.sleep(3)
+ 
+
+    # busca arquivo ------------------------------------------------------------------------------------------------
+    for file_name in os.listdir(r'C:\Users\Usuário\Downloads'):
+        if "RelatorioOrigemDestino" in file_name:
+            file_path = os.path.join(r'C:\Users\Usuário\Downloads', file_name)
+            print(f"Arquivo encontrado: {file_path}")
+            break
+    else:
+        print("Nenhum arquivo com 'RelatorioOrigemDestino' encontrado na pasta Downloads.")
+        
+    # -------------------------------------------------------------------------------------------------------------------------------------------
+    # busca arquivo
+
+    # Abre o arquivo .xls com xlrd
+    workbook = xlrd.open_workbook(file_path)
+    sheet = workbook.sheet_by_name('RelatorioOrigemDestino')
+
+    # Cria um novo arquivo Excel .xlsx para armazenar o filtro
+    wb = Workbook()
+    ws = wb.active
+    ws.title = "Filtrado"
+
+    # Copia o cabeçalho
+    for col in range(sheet.ncols):
+        ws.cell(row=1, column=col + 1, value=sheet.cell_value(0, col))
+
+    # Filtra os dados (assumindo que 'Empresa' está na coluna 0) e remove linhas em branco
+    row_index = 2
+    for row in range(1, sheet.nrows):
+        empresa = sheet.cell_value(row, 0)
+        if empresa == 'VIACAO SERRO LTDA' or empresa == '':
+            # Insere a linha completa, mesmo se houver células vazias
+            for col in range(sheet.ncols):
+                ws.cell(row=row_index, column=col + 1, value=sheet.cell_value(row, col))
+            row_index += 1
+
+    # Alinhar os dados centralizados
+    for row in ws.iter_rows(min_row=1, max_row=ws.max_row, min_col=1, max_col=ws.max_column):
+        for cell in row:
+            cell.alignment = Alignment(horizontal="center", vertical="center")
+
+    # Escreve "PASSAGEIROS" na célula G1 e "FATURAMENTO" na célula H1
+    ws['G1'] = 'Passageiros'
+    ws['H1'] = 'Faturamento'
+
+    # Deleta as células de G2 a M2 e desloca os dados para cima
+    for col in range(7, 14):
+        for row in range(2, ws.max_row):
+            ws.cell(row=row, column=col).value = ws.cell(row=row + 1, column=col).value
+
+    # Limpa os valores duplicados na última linha
+    for col in range(7, 14):
+        ws.cell(row=ws.max_row, column=col).value = None
+
+    # Deletar colunas específicas
+    ws.delete_cols(1)  
+    ws.delete_cols(2) 
+    ws.delete_cols(2) 
+    ws.delete_cols(2) 
+    ws.delete_cols(2)  
+
+    # Apaga os valores das colunas D até H
+    for col in range(4, 9):
+        for row in range(1, ws.max_row + 1):
+            ws.cell(row=row, column=col).value = None
+
+    # Aplicar filtro na primeira linha
+    ws.auto_filter.ref = "A1:C24"
+
+    # Ordenar a coluna "Serviço"
+    data_rows = list(ws.iter_rows(min_row=2, max_row=ws.max_row, min_col=1, max_col=3, values_only=True))
+    sorted_rows = sorted([row for row in data_rows if row[0] is not None], key=lambda row: str(row[0]))
+
+    # Limpa as linhas e reescreve com dados ordenados
+    for row in ws.iter_rows(min_row=2, max_row=ws.max_row, min_col=1, max_col=3):
+        for cell in row:
+            cell.value = None
+
+    for idx, row_data in enumerate(sorted_rows, start=2):
+        for col_idx, value in enumerate(row_data, start=1):
+            ws.cell(row=idx, column=col_idx, value=value)
+
+    # Formatar "Faturamento" como valor monetário BRL
+    for row in range(2, ws.max_row + 1):
+        cell = ws.cell(row=row, column=3)
+        if isinstance(cell.value, (int, float)):
+            cell.number_format = '"R$"#,##0.00'
+
+    data = []
+    columns = [cell.value for cell in ws[1]] 
+
+    # Percorrer as linhas restantes para coletar os dados
+    for row in ws.iter_rows(min_row=2, values_only=True):
+        if any(row): 
+            data.append(dict(zip(columns, row)))
+
+    # Transformar os dados extraídos em um DataFrame
+    fin_df = pd.DataFrame(data)
+    fin_df = fin_df.dropna(axis=1, how='all')
+
+    # mescla arquivos ------------------------------------------------------------------------------------------------
+    desc_df = pd.read_excel(desc_path)
+    merged_df = pd.merge(fin_df, desc_df, on="Serviço", how="left")
+
+    # ----------------------------------------------------------------------------------------------------------------
+    # Preenche a coluna "Data" apenas para as linhas que têm dados nas colunas principais
+
+    mask = merged_df[['Serviço', 'Passageiros', 'Faturamento']].notnull().all(axis=1)
+    merged_df.loc[mask, 'Data'] = data_relatorio_str
+
+    df_final = merged_df.dropna(subset=['Serviço', 'Passageiros', 'Faturamento'], how='any')
+
+
+    df_final = df_final.copy()
+    df_final['RPK'] = (df_final['Faturamento'] / df_final['KM Total da linha']).round(2)
+
+
+    # Mover a nova coluna 'RPK' para logo após a coluna 'Meta' 
+    cols = df_final.columns.tolist()
+    meta_index = cols.index('Meta')
+    cols.insert(meta_index + 1, cols.pop(cols.index('RPK')))
+    df_final = df_final[cols]
+    os.remove(file_path)
+
+    # Agrupar os dados por 'Linha' e somar 'Faturamento' e 'KM Total da linha'
+    df_resumo = df_final.groupby('Linha').agg({
+        'Faturamento': 'sum',
+        'KM Total da linha': 'sum',
+    }).reset_index()
+
+    # Adicionar a coluna 'Viagens', que conta o número de vezes que cada linha apareceu
+    df_resumo['Viagens'] = df_final.groupby('Linha').size().values
+
+    # Calcular o RPK como Faturamento Total / KM Total da Linha
+    df_resumo['RPK'] = df_resumo['Faturamento'] / df_resumo['KM Total da linha']
+
+    # Convertendo a coluna 'Linha' para string para garantir que cada linha seja tratada individualmente
+    df_resumo['Linha'] = df_resumo['Linha'].astype(str)
+
+    
+
+    # -------------------------------------------------------------------------------------------------------------------------------------------
+    # Salvando relatório em donwloads
+
+
+    dia_relatorio = data_relatorio_str[:2]
+    data_final_edit = data_final.replace('/', '-')
+    df_final.to_excel(f"~/Downloads/RelServ {dia_relatorio} a {data_final_edit}.xlsx", index=False)
+    print('Relatório salvo com sucesso na pasta "Downloads"!')
+
+    # soma +1 na data do relatório
+    data_relatorio_obj += timedelta(days=1)
+    data_relatorio_str = data_relatorio_obj.strftime("%d/%m/%Y")
+    driver.get(url_login)
+
+
+# -------------------------------------------------------------------------------------------------------------------------------------------
+# Concatena arquivos gerados na pasta downloads
+
+diretorio_downloads = "C:/Users/Usuário/Downloads"
+
+# Lista para armazenar cada DataFrame carregado
+df_RelServ = []
+
+# Percorrer todos os arquivos no diretório
+for filename in os.listdir(diretorio_downloads):
+    if "RelServ" in filename and filename.endswith(".xlsx"):
+        file_path = os.path.join(diretorio_downloads, filename)
+        df = pd.read_excel(file_path)  
+        df_RelServ.append(df)  
+
+# Concatenar todos os DataFrames em um único
+df_RelServ_final = pd.concat(df_RelServ, ignore_index=True)
+
+# Salvar o DataFrame final em um novo arquivo Excel
+df_RelServ_final.to_excel("~/Downloads/Rel_concatenado.xlsx", index=False)
+
+
+
+driver.quit()
+
+# limpa todos os arquivos temporários
+for filename in os.listdir(diretorio_downloads):
+    if "RelServ" in filename and filename.endswith(".xlsx"):
+        file_path  = os.path.join(diretorio_downloads, filename)
+        os.remove(file_path)  # Usar os.remove() para deletar o arquivo
+        print(f"Arquivo deletado: {file_path}")from selenium import webdriver
+from selenium.webdriver.common.by import By
+from selenium.webdriver.common.keys import Keys
+from selenium.webdriver.chrome.service import Service
+from webdriver_manager.chrome import ChromeDriverManager
+from selenium.webdriver.common.action_chains import ActionChains
+from selenium import webdriver
+from selenium.webdriver.support.ui import WebDriverWait
+from selenium.webdriver.support import expected_conditions as EC
+import matplotlib.pyplot as plt
+import time
+import pyautogui
+import xlrd
+from openpyxl import Workbook
+from openpyxl.styles import Alignment
+import openpyxl
+from datetime import datetime, timedelta
+import pandas as pd
+import os
+import win32com.client as win32
+from io import BytesIO
+import base64
+
+
+# Config data 
+data_inicio = input('Insira a data de início (dd/mm/aaaa): ')
+data_final = input('Insira a data final (dd/mm/aaaa): ')
+
+
+
+# Config caminhos 
+desc_path = r'C:\Users\Usuário\Documents\Projetos\05 - Vserro 2\DescServ.xlsx'
+
+
+# Busca arquivo
+for file_name in os.listdir(r'C:\Users\Usuário\Downloads'):
+    if "RelatorioOrigemDestino" in file_name:
+        file_path = os.path.join(r'C:\Users\Usuário\Downloads', file_name)
+        os.remove(file_path)
+        print(f"Arquivo apagado: {file_path}")
+        
+else:
+    print("Nenhum arquivo com 'RelatorioOrigemDestino' encontrado na pasta Downloads.")
+
+
+# -------------------------------------------------------------------------------------------------------------------------------------------
+# Acessa Web service
+service = Service(ChromeDriverManager().install())
+options = webdriver.ChromeOptions()
+driver = webdriver.Chrome(service=service, options=options)
+wait = WebDriverWait(driver, timeout=60) 
+driver.maximize_window()
+url_login = 'https://webservice.com.br'
+driver.get(url_login)
+usuario = 'Nome_usuario'
+senha = 'Senha'
+
+driver.find_element(By.NAME, "Botao_username").clear()
+driver.find_element(By.NAME, "Botao_username").send_keys(usuario) 
+
+driver.find_element(By.NAME, "Botao_password").clear()
+driver.find_element(By.NAME, "Botao_password").send_keys(senha)
+
+driver.find_element(By.NAME, "BotaoAcessar").click()
+
+
+
+# -------------------------------------------------------------------------------------------------------------------------------------------
+# Config data 
+data_inicio_obj = datetime.strptime(data_inicio, "%d/%m/%Y")
+data_final_obj = datetime.strptime(data_final, "%d/%m/%Y")
+
+data_relatorio_obj = datetime.strptime(data_inicio, "%d/%m/%Y")
+data_relatorio_str = data_relatorio_obj.strftime("%d/%m/%Y")
+
+
+while data_relatorio_obj <= data_final_obj:
+    print('Relatório dia:', data_relatorio_str)
+    
+
+    # -------------------------------------------------------------------------------------------------------------------------------------------
+    # relatório caminho
+
+    BotaoRelat = wait.until(EC.presence_of_element_located((By.XPATH, '/html/body/div/div/div[3]/div[2]/div[1]/div[1]/div/div/table/tbody/tr/td[9]')))
+    BotaoRelat.click()
+
+    time.sleep(1)
+
+    element = driver.find_element(By.PARTIAL_LINK_TEXT, 'Relatórios')
+    element.click()
+
+    actions = ActionChains(driver)
+
+    element = driver.find_element(By.PARTIAL_LINK_TEXT, 'Relatórios Estatísticos')
+    actions.move_to_element(element).perform()
+
+    element = driver.find_element(By.PARTIAL_LINK_TEXT, 'Desempenho Por Serviço')
+    element.click()
+
+    # config relatório ------------------------------------------------------------------------------------------------
+
+    DataIni = wait.until(EC.presence_of_element_located((By.XPATH, '/html/body/div[2]/div[3]/div/div/div/div[1]/div[3]/table/tbody[2]/tr[1]/td[2]/div/i/input')))
+    DataIni.click()
+    DataIni.send_keys(data_relatorio_str) 
+    DataFim = driver.find_element(By.XPATH, '/html/body/div[2]/div[3]/div/div/div/div[1]/div[3]/table/tbody[2]/tr[1]/td[4]/div/i/input')
+    DataFim.click()
+    DataFim.send_keys(data_relatorio_str) 
+
+    Empresa = driver.find_element(By.XPATH, '/html/body/div[2]/div[3]/div/div/div/div[1]/div[3]/table/tbody[2]/tr[2]/td[2]/div/i/input')
+    Empresa.click()
+    time.sleep(1)
+    Empresa = driver.find_element(By.XPATH, '/html/body/div[3]/table/tbody/tr/td[2]')
+    Empresa.click()
+
+    Botao = driver.find_element(By.XPATH, '/html/body/div[2]/div[3]/div/div/div/div[1]/div[3]/table/tbody[2]/tr[4]/td/div/span/input')
+    Botao.click()
+
+    Botao = driver.find_element(By.XPATH, '/html/body/div[2]/div[3]/div/div/div/div[1]/div[3]/table/tbody[2]/tr[5]/td/div/span/input')
+    Botao.click()
+
+    Botao = driver.find_element(By.XPATH, '/html/body/div[2]/div[3]/div/div/div/div[2]/div[1]/button')
+    Botao.click()
+
+    BotaoExcel = wait.until(EC.presence_of_element_located((By.XPATH, '/html/body/div[4]/div[3]/div/div/div/div/div[1]/div[1]/div[2]')))
+    BotaoExcel.click()
+
+    pyautogui.click(1198,109,duration=3)
+
+    time.sleep(3)
+ 
+
+    # busca arquivo ------------------------------------------------------------------------------------------------
+    for file_name in os.listdir(r'C:\Users\Usuário\Downloads'):
+        if "RelatorioOrigemDestino" in file_name:
+            file_path = os.path.join(r'C:\Users\Usuário\Downloads', file_name)
+            print(f"Arquivo encontrado: {file_path}")
+            break
+    else:
+        print("Nenhum arquivo com 'RelatorioOrigemDestino' encontrado na pasta Downloads.")
+        
+    # -------------------------------------------------------------------------------------------------------------------------------------------
+    # busca arquivo
+
+    # Abre o arquivo .xls com xlrd
+    workbook = xlrd.open_workbook(file_path)
+    sheet = workbook.sheet_by_name('RelatorioOrigemDestino')
+
+    # Cria um novo arquivo Excel .xlsx para armazenar o filtro
+    wb = Workbook()
+    ws = wb.active
+    ws.title = "Filtrado"
+
+    # Copia o cabeçalho
+    for col in range(sheet.ncols):
+        ws.cell(row=1, column=col + 1, value=sheet.cell_value(0, col))
+
+    # Filtra os dados (assumindo que 'Empresa' está na coluna 0) e remove linhas em branco
+    row_index = 2
+    for row in range(1, sheet.nrows):
+        empresa = sheet.cell_value(row, 0)
+        if empresa == 'VIACAO SERRO LTDA' or empresa == '':
+            # Insere a linha completa, mesmo se houver células vazias
+            for col in range(sheet.ncols):
+                ws.cell(row=row_index, column=col + 1, value=sheet.cell_value(row, col))
+            row_index += 1
+
+    # Alinhar os dados centralizados
+    for row in ws.iter_rows(min_row=1, max_row=ws.max_row, min_col=1, max_col=ws.max_column):
+        for cell in row:
+            cell.alignment = Alignment(horizontal="center", vertical="center")
+
+    # Escreve "PASSAGEIROS" na célula G1 e "FATURAMENTO" na célula H1
+    ws['G1'] = 'Passageiros'
+    ws['H1'] = 'Faturamento'
+
+    # Deleta as células de G2 a M2 e desloca os dados para cima
+    for col in range(7, 14):
+        for row in range(2, ws.max_row):
+            ws.cell(row=row, column=col).value = ws.cell(row=row + 1, column=col).value
+
+    # Limpa os valores duplicados na última linha
+    for col in range(7, 14):
+        ws.cell(row=ws.max_row, column=col).value = None
+
+    # Deletar colunas específicas
+    ws.delete_cols(1)  
+    ws.delete_cols(2) 
+    ws.delete_cols(2) 
+    ws.delete_cols(2) 
+    ws.delete_cols(2)  
+
+    # Apaga os valores das colunas D até H
+    for col in range(4, 9):
+        for row in range(1, ws.max_row + 1):
+            ws.cell(row=row, column=col).value = None
+
+    # Aplicar filtro na primeira linha
+    ws.auto_filter.ref = "A1:C24"
+
+    # Ordenar a coluna "Serviço"
+    data_rows = list(ws.iter_rows(min_row=2, max_row=ws.max_row, min_col=1, max_col=3, values_only=True))
+    sorted_rows = sorted([row for row in data_rows if row[0] is not None], key=lambda row: str(row[0]))
+
+    # Limpa as linhas e reescreve com dados ordenados
+    for row in ws.iter_rows(min_row=2, max_row=ws.max_row, min_col=1, max_col=3):
+        for cell in row:
+            cell.value = None
+
+    for idx, row_data in enumerate(sorted_rows, start=2):
+        for col_idx, value in enumerate(row_data, start=1):
+            ws.cell(row=idx, column=col_idx, value=value)
+
+    # Formatar "Faturamento" como valor monetário BRL
+    for row in range(2, ws.max_row + 1):
+        cell = ws.cell(row=row, column=3)
+        if isinstance(cell.value, (int, float)):
+            cell.number_format = '"R$"#,##0.00'
+
+    data = []
+    columns = [cell.value for cell in ws[1]] 
+
+    # Percorrer as linhas restantes para coletar os dados
+    for row in ws.iter_rows(min_row=2, values_only=True):
+        if any(row): 
+            data.append(dict(zip(columns, row)))
+
+    # Transformar os dados extraídos em um DataFrame
+    fin_df = pd.DataFrame(data)
+    fin_df = fin_df.dropna(axis=1, how='all')
+
+    # mescla arquivos ------------------------------------------------------------------------------------------------
+    desc_df = pd.read_excel(desc_path)
+    merged_df = pd.merge(fin_df, desc_df, on="Serviço", how="left")
+
+    # ----------------------------------------------------------------------------------------------------------------
+    # Preenche a coluna "Data" apenas para as linhas que têm dados nas colunas principais
+
+    mask = merged_df[['Serviço', 'Passageiros', 'Faturamento']].notnull().all(axis=1)
+    merged_df.loc[mask, 'Data'] = data_relatorio_str
+
+    df_final = merged_df.dropna(subset=['Serviço', 'Passageiros', 'Faturamento'], how='any')
+
+
+    df_final = df_final.copy()
+    df_final['RPK'] = (df_final['Faturamento'] / df_final['KM Total da linha']).round(2)
+
+
+    # Mover a nova coluna 'RPK' para logo após a coluna 'Meta' 
+    cols = df_final.columns.tolist()
+    meta_index = cols.index('Meta')
+    cols.insert(meta_index + 1, cols.pop(cols.index('RPK')))
+    df_final = df_final[cols]
+    os.remove(file_path)
+
+    # Agrupar os dados por 'Linha' e somar 'Faturamento' e 'KM Total da linha'
+    df_resumo = df_final.groupby('Linha').agg({
+        'Faturamento': 'sum',
+        'KM Total da linha': 'sum',
+    }).reset_index()
+
+    # Adicionar a coluna 'Viagens', que conta o número de vezes que cada linha apareceu
+    df_resumo['Viagens'] = df_final.groupby('Linha').size().values
+
+    # Calcular o RPK como Faturamento Total / KM Total da Linha
+    df_resumo['RPK'] = df_resumo['Faturamento'] / df_resumo['KM Total da linha']
+
+    # Convertendo a coluna 'Linha' para string para garantir que cada linha seja tratada individualmente
+    df_resumo['Linha'] = df_resumo['Linha'].astype(str)
+
+    
+
+    # -------------------------------------------------------------------------------------------------------------------------------------------
+    # Salvando relatório em donwloads
+
+
+    dia_relatorio = data_relatorio_str[:2]
+    data_final_edit = data_final.replace('/', '-')
+    df_final.to_excel(f"~/Downloads/RelServ {dia_relatorio} a {data_final_edit}.xlsx", index=False)
+    print('Relatório salvo com sucesso na pasta "Downloads"!')
+
+    # soma +1 na data do relatório
+    data_relatorio_obj += timedelta(days=1)
+    data_relatorio_str = data_relatorio_obj.strftime("%d/%m/%Y")
+    driver.get(url_login)
+
+
+# -------------------------------------------------------------------------------------------------------------------------------------------
+# Concatena arquivos gerados na pasta downloads
+
+diretorio_downloads = "C:/Users/Usuário/Downloads"
+
+# Lista para armazenar cada DataFrame carregado
+df_RelServ = []
+
+# Percorrer todos os arquivos no diretório
+for filename in os.listdir(diretorio_downloads):
+    if "RelServ" in filename and filename.endswith(".xlsx"):
+        file_path = os.path.join(diretorio_downloads, filename)
+        df = pd.read_excel(file_path)  
+        df_RelServ.append(df)  
+
+# Concatenar todos os DataFrames em um único
+df_RelServ_final = pd.concat(df_RelServ, ignore_index=True)
+
+# Salvar o DataFrame final em um novo arquivo Excel
+df_RelServ_final.to_excel("~/Downloads/Rel_concatenado.xlsx", index=False)
+
+
+
+driver.quit()
+
+# limpa todos os arquivos temporários
+for filename in os.listdir(diretorio_downloads):
+    if "RelServ" in filename and filename.endswith(".xlsx"):
+        file_path  = os.path.join(diretorio_downloads, filename)
+        os.remove(file_path)  # Usar os.remove() para deletar o arquivo
+        print(f"Arquivo deletado: {file_path}")
