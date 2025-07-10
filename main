@@ -1,0 +1,543 @@
+from selenium import webdriver
+from selenium.webdriver.common.by import By
+from selenium.webdriver.common.keys import Keys
+from selenium.webdriver.chrome.service import Service
+from webdriver_manager.chrome import ChromeDriverManager
+from selenium.webdriver.common.action_chains import ActionChains
+from selenium.webdriver.support.ui import WebDriverWait
+from selenium.webdriver.support import expected_conditions as EC
+from IPython.display import display
+import matplotlib.pyplot as plt
+import time
+import pyautogui
+import xlrd
+from openpyxl import Workbook
+from openpyxl.styles import Alignment
+import openpyxl
+from datetime import datetime, timedelta
+import pandas as pd
+import os
+import win32com.client as win32
+from io import BytesIO
+import base64
+
+
+# Config data 
+data_inicio = input('Insira a data de início (dd/mm/aaaa): ')
+data_final = input('Insira a data final (dd/mm/aaaa): ')
+Valida_email_teste = input("Digite 1 para teste, ou qualquer botão para enviar aos colaboradores.")
+
+
+
+# Config caminhos 
+desc_path = r'C:\Users\usuário\Documents\Projetos\05 - empresaX 2\DescServ.xlsx'
+
+
+# Busca arquivo
+for file_name in os.listdir(r'C:\Users\usuário\Downloads'):
+    if "RelatorioOrigemDestino" in file_name:
+        file_path = os.path.join(r'C:\Users\usuário\Downloads', file_name)
+        os.remove(file_path)
+        print(f"Arquivo apagado: {file_path}")
+else:
+    print("Nenhum arquivo com 'RelatorioOrigemDestino' encontrado na pasta Downloads.")
+
+
+# -------------------------------------------------------------------------------------------------------------------------------------------
+# Acessa Web service
+service = Service(ChromeDriverManager().install())
+options = webdriver.ChromeOptions()
+driver = webdriver.Chrome(service=service, options=options)
+wait = WebDriverWait(driver, timeout=60) 
+driver.maximize_window()
+url_login = 'https://linkwebservice'
+driver.get(url_login)
+usuario = 'meu usuário'
+senha = 'minha senha'
+
+driver.find_element(By.NAME, "j_username").clear()
+driver.find_element(By.NAME, "j_username").send_keys(usuario) 
+
+driver.find_element(By.NAME, "j_password").clear()
+driver.find_element(By.NAME, "j_password").send_keys(senha)
+
+driver.find_element(By.NAME, "btnAcessar").click()
+
+# -------------------------------------------------------------------------------------------------------------------------------------------
+# Config data 
+data_inicio_obj = datetime.strptime(data_inicio, "%d/%m/%Y")
+data_final_obj = datetime.strptime(data_final, "%d/%m/%Y")
+
+data_relatorio_obj = datetime.strptime(data_inicio, "%d/%m/%Y")
+data_relatorio_str = data_relatorio_obj.strftime("%d/%m/%Y")
+
+while data_relatorio_obj <= data_final_obj:
+    print('Relatório dia:', data_relatorio_str)
+    
+    # -------------------------------------------------------------------------------------------------------------------------------------------
+    # relatório caminho
+
+    BotaoRelat = wait.until(EC.presence_of_element_located((By.XPATH, '/html/body/div/div/div[3]/div[2]/div[1]/div[1]/div/div/table/tbody/tr/td[9]')))
+    BotaoRelat.click()
+
+    time.sleep(1)
+
+    element = driver.find_element(By.PARTIAL_LINK_TEXT, 'Relatórios')
+    element.click()
+
+    actions = ActionChains(driver)
+
+    element = driver.find_element(By.PARTIAL_LINK_TEXT, 'Relatórios Estatísticos')
+    actions.move_to_element(element).perform()
+
+    element = driver.find_element(By.PARTIAL_LINK_TEXT, 'Desempenho Por Serviço')
+    element.click()
+
+    # config relatório ------------------------------------------------------------------------------------------------
+
+    DataIni = wait.until(EC.presence_of_element_located((By.XPATH, '/html/body/div[2]/div[3]/div/div/div/div[1]/div[3]/table/tbody[2]/tr[1]/td[2]/div/i/input')))
+    DataIni.click()
+    DataIni.send_keys(data_relatorio_str) 
+    DataFim = driver.find_element(By.XPATH, '/html/body/div[2]/div[3]/div/div/div/div[1]/div[3]/table/tbody[2]/tr[1]/td[4]/div/i/input')
+    DataFim.click()
+    DataFim.send_keys(data_relatorio_str) 
+
+    Empresa = driver.find_element(By.XPATH, '/html/body/div[2]/div[3]/div/div/div/div[1]/div[3]/table/tbody[2]/tr[2]/td[2]/div/i/input')
+    Empresa.click()
+    time.sleep(1)
+    Empresa = driver.find_element(By.XPATH, '/html/body/div[3]/table/tbody/tr/td[2]')
+    Empresa.click()
+
+    Botao = driver.find_element(By.XPATH, '/html/body/div[2]/div[3]/div/div/div/div[1]/div[3]/table/tbody[2]/tr[4]/td/div/span/input')
+    Botao.click()
+
+    Botao = driver.find_element(By.XPATH, '/html/body/div[2]/div[3]/div/div/div/div[1]/div[3]/table/tbody[2]/tr[5]/td/div/span/input')
+    Botao.click()
+
+    Botao = driver.find_element(By.XPATH, '/html/body/div[2]/div[3]/div/div/div/div[2]/div[1]/button')
+    Botao.click()
+
+    BotaoExcel = wait.until(EC.presence_of_element_located((By.XPATH, '/html/body/div[4]/div[3]/div/div/div/div/div[1]/div[1]/div[2]')))
+    BotaoExcel.click()
+    
+    time.sleep(3)
+    
+    # busca arquivo ------------------------------------------------------------------------------------------------
+    while True:
+        encontrado = False
+        for file_name in os.listdir(r'C:\Users\usuário\Downloads'):
+            if "RelatorioOrigemDestino" in file_name:
+                encontrado = True
+                file_path = os.path.join(r'C:\Users\usuário\Downloads', file_name)
+                break
+        if encontrado == True:
+            break
+        time.sleep(2)
+
+# -------------------------------------------------------------------------------------------------------------------------------------------
+#   Abre o arquivo .xls com xlrd
+    workbook = xlrd.open_workbook(file_path)
+    sheet = workbook.sheet_by_name('RelatorioOrigemDestino')
+
+    # Cria um novo arquivo Excel .xlsx para armazenar o filtro
+    wb = Workbook()
+    ws = wb.active
+    ws.title = "Filtrado"
+
+    # Copia o cabeçalho
+    for col in range(sheet.ncols):
+        ws.cell(row=1, column=col + 1, value=sheet.cell_value(0, col))
+
+    # Filtra os dados (assumindo que 'Empresa' está na coluna 0) e remove linhas em branco
+    row_index = 2
+    for row in range(1, sheet.nrows):
+        empresa = sheet.cell_value(row, 0)
+        if empresa == 'empresaX' or empresa == '':
+            # Insere a linha completa, mesmo se houver células vazias
+            for col in range(sheet.ncols):
+                ws.cell(row=row_index, column=col + 1, value=sheet.cell_value(row, col))
+            row_index += 1
+
+    # Remove da última para a primeira celula
+    for col in range(16, 9, -1):  # Colunas P(16) até J(10)
+        ws.delete_cols(col)
+        
+    for col in range(7, 2, -1):
+        ws.delete_cols(col)
+    
+    ws['D1'] = "Passageiros"
+
+    # Define as colunas a serem deslocadas (C = coluna 3, D = coluna 4)
+    colunas = [3, 4]  # C e D
+
+    # Para cada coluna, desloca valores para cima a partir da linha 2
+    for col in colunas:
+        for row in range(2, ws.max_row):
+            ws.cell(row=row, column=col).value = ws.cell(row=row + 1, column=col).value
+        # Limpa a última célula da coluna
+        ws.cell(row=ws.max_row, column=col).value = None
+        
+    # Percorre linhas vazias e exclui ultima vez
+    for row in range(ws.max_row, 1, -1):
+        valor = ws.cell(row=row, column=1).value  # Coluna A = índice 1
+        if valor is None or str(valor).strip() == "":
+            ws.delete_rows(row)    
+
+    # Cria um novo cabeçalho
+    ws.cell(row=1, column=2, value="Serviço")
+    ws.cell(row=1, column=3, value="Passageiros")
+    ws.cell(row=1, column=4, value="Faturamento")        
+
+    # Extrai os dados
+    dados = []
+    for row in ws.iter_rows(values_only=True):
+        dados.append(row)
+
+    # Converte para DataFrame
+    df_dados = pd.DataFrame(dados[1:], columns=dados[0])  # pula o cabeçalho da primeira linha
+
+    # Exibe as primeiras linhas
+    df_dados = df_dados.drop(columns=["Empresa"])
+
+    # mescla arquivos ------------------------------------------------------------------------------------------------
+    desc_df = pd.read_excel(desc_path)
+    desc_guia2_df = pd.read_excel(desc_path, sheet_name="Linhas")
+    merged_df = pd.merge(df_dados, desc_df, on="Serviço", how="left")
+    
+    # ----------------------------------------------------------------------------------------------------------------
+    # Preenche a coluna "Data" apenas para as linhas que têm dados nas colunas principais
+
+    mask = merged_df[['Serviço', 'Passageiros', 'Faturamento']].notnull().all(axis=1)
+    
+    merged_df.loc[mask, 'Data'] = data_relatorio_str
+
+    df_final = merged_df.dropna(subset=['Serviço', 'Passageiros', 'Faturamento'], how='any')
+
+
+    df_final = df_final.copy()
+    df_final['RPK'] = (df_final['Faturamento'] / df_final['KM Total da linha']).round(2)
+
+
+    # Mover a nova coluna 'RPK' para logo após a coluna 'Meta' 
+    cols = df_final.columns.tolist()
+    meta_index = cols.index('Meta')
+    cols.insert(meta_index + 1, cols.pop(cols.index('RPK')))
+    df_final = df_final[cols]
+    os.remove(file_path)
+
+    # Agrupar os dados por 'Linha' e somar 'Faturamento' e 'KM Total da linha'
+    df_resumo = df_final.groupby('Linha').agg({
+        'Faturamento': 'sum',
+        'KM Total da linha': 'sum',
+    }).reset_index()
+
+    # Adicionar a coluna 'Viagens', que conta o número de vezes que cada linha apareceu
+    df_resumo['Viagens'] = df_final.groupby('Linha').size().values
+
+    # Calcular o RPK como Faturamento Total / KM Total da Linha
+    df_resumo['RPK'] = df_resumo['Faturamento'] / df_resumo['KM Total da linha']
+
+    # Convertendo a coluna 'Linha' para string para garantir que cada linha seja tratada individualmente
+    df_resumo['Linha'] = df_resumo['Linha'].astype(str)
+
+    # -------------------------------------------------------------------------------------------------------------------------------------------
+    # Salvando relatório em donwloads
+
+    dia_relatorio = data_relatorio_str[:2]
+    data_final_edit = data_final.replace('/', '-')
+    df_final.to_excel(f"~/Downloads/RelServ {dia_relatorio} a {data_final_edit}.xlsx", index=False)
+    print('Relatório salvo com sucesso na pasta "Downloads"!')
+
+    # soma +1 na data do relatório
+    data_relatorio_obj += timedelta(days=1)
+    data_relatorio_str = data_relatorio_obj.strftime("%d/%m/%Y")
+    driver.get(url_login)
+
+
+# -------------------------------------------------------------------------------------------------------------------------------------------
+# Concatena arquivos gerados na pasta downloads
+
+diretorio_downloads = "C:/Users/usuário/Downloads"
+
+# Lista para armazenar cada DataFrame carregado
+df_RelServ = []
+
+# Percorrer todos os arquivos no diretório
+for filename in os.listdir(diretorio_downloads):
+    if "RelServ" in filename and filename.endswith(".xlsx"):
+        file_path = os.path.join(diretorio_downloads, filename)
+        df = pd.read_excel(file_path)  
+        df_RelServ.append(df)  
+
+# Concatenar todos os DataFrames em um único
+df_RelServ_final = pd.concat(df_RelServ, ignore_index=True)
+
+# Salvar o DataFrame final em um novo arquivo Excel
+df_RelServ_final.to_excel("~/Downloads/Rel_concatenado.xlsx", index=False)
+
+driver.quit()
+
+# limpa todos os arquivos temporários
+for filename in os.listdir(diretorio_downloads):
+    if "RelServ" in filename and filename.endswith(".xlsx"):
+        file_path  = os.path.join(diretorio_downloads, filename)
+        os.remove(file_path)  # Usar os.remove() para deletar o arquivo
+        print(f"Arquivo deletado: {file_path}")
+
+df_RelServ_final = pd.read_excel('~/Downloads/Rel_concatenado.xlsx')
+df_final = df_RelServ_final
+
+# Apaga arquivo temporário
+os.remove('C:/Users/usuário/Downloads/Rel_concatenado.xlsx')
+
+# Agrupar os dados por 'Linha' e somar 'Faturamento' e 'KM Total da linha'
+df_resumo = df_final.groupby('Linha').agg({
+    'Faturamento': 'sum',
+    'KM Total da linha': 'sum',
+}).reset_index()
+
+# Adicionar a coluna 'Viagens', que conta o número de vezes que cada linha apareceu
+df_resumo['Viagens'] = df_final.groupby('Linha').size().values
+
+# Calcular o RPK como Faturamento Total / KM Total da Linha
+df_resumo['RPK'] = df_resumo['Faturamento'] / df_resumo['KM Total da linha']
+
+# Convertendo a coluna 'Linha' para string para garantir que cada linha seja tratada individualmente
+df_resumo['Linha'] = df_resumo['Linha'].astype(str)
+
+
+# -------------------------------------------------------------------------------------------------------------------------------------------
+# Função para adicionar os valores no topo das barras do gráfico
+
+def add_value_labels(ax, spacing=0, format_str="R${:,.2f}", fontsize=8):
+    """ Adiciona rótulos de valor no topo das barras com espaçamento reduzido """
+    for rect in ax.patches:
+        height = rect.get_height()
+        ax.text(
+            rect.get_x() + rect.get_width() / 2,  
+            height + spacing,  # Posição vertical (topo da barra)
+            format_str.format(height),  
+            ha='center', va='bottom', fontsize=fontsize  
+        )
+
+# -------------------------------------------------------------------------------------------------------------------------------------------
+# Criando gráfico de barras para Faturamento por Linha
+
+plt.figure(figsize=(15, 6))
+ax = plt.bar(df_resumo['Linha'], df_resumo['Faturamento'], color='tab:blue', width=0.8)  # Ajustando o espaçamento entre as barras
+plt.xlabel('Linha')
+plt.ylabel('Faturamento')
+plt.title('Faturamento por Linha')
+plt.xticks(rotation=90) 
+plt.tight_layout()
+
+# Adicionando os rótulos no topo das barras com tamanho menor e menor espaçamento
+ax = plt.gca() 
+add_value_labels(ax, format_str="R${:,.2f}", fontsize=8, spacing=1) 
+
+# Salvar o gráfico em um buffer (Faturamento)
+buffer_faturamento = BytesIO()
+plt.savefig(buffer_faturamento, format='png')
+plt.close()
+
+# Converter o gráfico de Faturamento para string base64
+buffer_faturamento.seek(0)
+img_faturamento_base64 = base64.b64encode(buffer_faturamento.read()).decode('utf-8')
+
+# Criando gráfico de barras para RPK por Linha
+plt.figure(figsize=(15, 6))
+ax = plt.bar(df_resumo['Linha'], df_resumo['RPK'], color='tab:orange', width=0.8) 
+plt.xlabel('Linha')
+plt.ylabel('RPK')
+plt.title('RPK por Linha')
+plt.xticks(rotation=90) 
+
+# Adicionando a linha horizontal na faixa de 8.00
+plt.axhline(y=8.00, color='red', linestyle='--', linewidth=2, label='Faixa de R$8.00')
+
+# Adicionando os rótulos no topo das barras com tamanho menor e menor espaçamento
+ax = plt.gca()
+add_value_labels(ax, format_str="R${:,.2f}", fontsize=8, spacing=0) 
+plt.tight_layout()
+plt.legend()
+
+# Salvar o gráfico em um buffer (RPK)
+buffer_rpk = BytesIO()
+plt.savefig(buffer_rpk, format='png')
+plt.close()
+
+# Converter o gráfico de RPK para string base64
+buffer_rpk.seek(0)
+img_rpk_base64 = base64.b64encode(buffer_rpk.read()).decode('utf-8')
+# -------------------------------------------------------------------------------------------------------------------------------------------
+# Valor total
+VTOT_periodo = f"{df_RelServ_final['Faturamento'].sum():,.2f}".replace('.', '-').replace(',', '.').replace('-', ',')
+KMTOT_periodo = f"{df_RelServ_final['KM Total da linha'].sum():,.2f}".replace('.', '-').replace(',', '.').replace('-', ',')
+RPKTOT_periodo = df_RelServ_final['Faturamento'].sum() / df_RelServ_final['KM Total da linha'].sum()
+RPKTOT_periodo = f"{RPKTOT_periodo:,.2f}".replace('.', '-').replace(',', '.').replace('-', ',')
+PASSTOT = df_RelServ_final['Passageiros'].sum()
+
+# Converte em string a aba linhas e insere descrição
+df_resumo['Linha'] = df_resumo['Linha'].astype(str).str.strip()
+desc_guia2_df['Linha'] = desc_guia2_df['Linha'].astype(str).str.strip()
+
+# Faz o merge com descrição das linhas
+df_resumo = df_resumo.merge(desc_guia2_df[['Linha', 'Descrição']], on='Linha', how='left')
+
+# Ordena do maior para o menor pelo KM
+df_resumo = df_resumo.sort_values(by="KM Total da linha", ascending=False)
+
+# Formatando DF resumo
+df_resumo['Faturamento'] = df_resumo['Faturamento'].map(lambda x: f"R${x:,.2f}".replace('.', 'X').replace(',', '.').replace('X', ','))
+df_resumo['RPK'] = df_resumo['RPK'].map(lambda x: f"R${x:,.2f}".replace('.', 'X').replace(',', '.').replace('X', ','))
+df_resumo['KM Total da linha'] = df_resumo['KM Total da linha'].map(lambda x: f"{x:,.2f} KM".replace('.', 'X').replace(',', '.').replace('X', ','))
+
+# Identifica serviços não cadastrados
+dados_vazios = df_final[df_final.isnull().any(axis=1)]
+if not dados_vazios.empty:
+    print("Linhas com serviços não cadastrados:")
+    display(dados_vazios)
+
+# Formatando DF final
+df_final['Faturamento'] = df_final['Faturamento'].map(lambda x: f"R${x:,.2f}".replace('.', 'X').replace(',', '.').replace('X', ','))
+df_final['RPK'] = df_final['RPK'].map(lambda x: f"R${x:,.2f}".replace('.', 'X').replace(',', '.').replace('X', ','))
+df_final['KM Total da linha'] = df_final['KM Total da linha'].map(lambda x: f"{x:,.2f} KM".replace('.', 'X').replace(',', '.').replace('X', ','))
+df_final['Serviço'] = df_final['Serviço'].astype(int)
+df_final['Passageiros'] = df_final['Passageiros'].astype(int)
+df_final['Meta'] = df_final['Meta'].astype(int)
+
+df_final['Linha'] = df_final['Linha'].astype(str)
+df_final = df_final.sort_values(by='Linha', ascending=True)
+
+
+# -------------------------------------------------------------------------------------------------------------------------------------------
+# EMAIL
+
+# Aplicar a estilização no DataFrame final
+df_final = df_final.style.applymap(
+    lambda x: "background-color: purple; color: white;" if x == "Modificado" else
+              "background-color: yellow; color: black;" if x == "Aproveitamento" else
+              "background-color: lightblue; color: black;" if x == "Extra" else
+              "background-color: #FFC000; color: white;" if x == "Temporário" else
+            "",
+    subset=["Situação"]
+)
+
+# Convertendo o DataFrame estilizado para HTML sem índice
+df_html_final = df_final.hide(axis="index").to_html()
+
+# Convertendo o DataFrame resumo para HTML sem índice
+df_html_resumo = df_resumo.to_html(index=False).replace('<td>', '<td style="text-decoration: none;">').replace('<th>', '<th style="text-decoration: none;">')
+
+
+# Destacar as células que contêm "1186" com fundo amarelo
+df_html_final = df_html_final.replace(
+    '>1186 B<', ' style="background-color: yellow;">1186 B<'
+).replace(
+    '>1009<', ' style="background-color: yellow;">1009<'
+)
+
+df_html_resumo = df_html_resumo.replace(
+    '>1186 B<', ' style="background-color: yellow;">1186 B<'
+).replace(
+    '>1009<', ' style="background-color: yellow;">1009<'
+)
+
+
+# Construir o conteúdo do e-mail com o DataFrame e o gráfico
+conteudo_email = f"""
+<html>
+<head>
+    <style>
+        .valor {{
+            color: green;
+            font-weight: bold;
+            font-size: 1.2em; 
+        }}
+        table {{
+            font-family: Arial, sans-serif;
+            border-collapse: collapse;
+            width: 100%;
+        }}
+        table, th, td {{
+            border: 1px solid black;
+            padding: 8px;
+        }}
+    </style>
+</head>
+<body>
+    <p>Relatório parcial de vendas empresaX de {data_inicio} a {data_final} </p>
+    
+    <h1>Resumo de vendas Geral - <span style="color: #C00000;">empresaX</span></h1>
+
+    O total faturado é: <span class="valor">R${VTOT_periodo}▲</span><br>
+
+    Km total percorrido: <span class="valor">{KMTOT_periodo}Km</span><br>
+
+    Receita por km: <span class="valor">R${RPKTOT_periodo}▲</span><br>
+
+    O total de bilhetes vendidos é: <span class="valor">{PASSTOT}</span><br>
+    
+
+    <br>
+
+    <h1>Resumo de vendas por linhas</h1>
+    {df_html_resumo}  <!-- Inclui o DataFrame em formato HTML -->
+    
+    <br>
+    
+    <img src="data:image/png;base64,{img_faturamento_base64}" alt="Gráfico de Vendas" />
+    <img src="data:image/png;base64,{img_rpk_base64}" alt="Gráfico de Vendas" />
+    <br>
+    <br>
+    
+    <h1>Resumo de vendas por horários</h1>
+    
+    {df_html_final}
+    
+    <br>
+    <p>Atenciosamente,</p>
+    <p>Mauricio Vargas</p>
+</body>
+</html>
+"""
+
+
+# Configuração do e-mail
+if Valida_email_teste == '1':
+    destinatario = "TESTE@teste1.com.br;"
+else:
+    destinatario = "equipe-empresaX@empresaX.com.br"
+
+
+
+# Defina o e-mail do remetente desejado
+email_envio = "meu-email@empresaX.com.br"
+
+assunto = f"Relatório de Vendas empresaX - {data_inicio} À {data_final}"
+corpo = conteudo_email
+
+# Iniciar o Outlook
+outlook = win32.Dispatch('Outlook.Application')
+
+# Criar o e-mail
+email = outlook.CreateItem(0)
+email.To = destinatario
+email.Subject = assunto
+email.HTMLBody = corpo
+
+# Selecionar a conta correta para envio
+for account in outlook.Session.Accounts:
+    if account.SmtpAddress.lower() == email_envio.lower():
+        email._oleobj_.Invoke(*(64209, 0, 8, 0, account))  # Força a conta de envio correta
+        break
+else:
+    raise ValueError(f"Conta de e-mail '{email_envio}' não encontrada no Outlook.")
+
+# Enviar o e-mail
+email.Send()
+print("---------------------------------------------------------------------")
+print(f"E-mail enviado com sucesso a partir de: {email_envio}")
+# -------------------------------------------------------------------------------------------------------------------------------------------
+
+
